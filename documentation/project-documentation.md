@@ -2,107 +2,175 @@
 
 ## 1. Project Overview
 
-The Real Estate AI Appointment Booking Automation is an AI-powered appointment scheduling workflow built with **Vapi, n8n, Airtable, Google Calendar, and Gmail**.
+The **Real Estate AI Appointment Booking Automation** is an AI-powered appointment scheduling system built with **Vapi, n8n, Airtable, Google Calendar, Google Meet, and Gmail**.
 
-The system allows a voice AI agent to receive appointment requests from prospective clients, verify the requested property and appointment details, check availability, create or update the client's booking information, schedule the appointment, and send confirmation notifications.
+The system allows a voice AI agent to receive appointment requests from prospective clients, collect and validate booking information, verify the requested property, check client records, check appointment availability, create the booking record, schedule the appointment, generate virtual meeting information where required, update Airtable, and notify the client and assigned representative.
 
-The workflow supports both:
+The workflow supports:
 
 * Physical property viewings
 * Virtual property viewings
+* Property validation
+* Existing-client detection
+* New-client creation
+* Appointment availability checking
+* Business-hour validation
+* Sunday restriction
+* Google Calendar scheduling
+* Google Meet generation for virtual appointments
+* Airtable record management
+* Client email notifications
+* Representative email notifications
+* Structured JSON responses to Vapi
 
-The automation is designed to prevent double-booking and provide the AI voice agent with a clear response that can be communicated immediately to the caller.
+The system is designed to prevent invalid or unavailable appointment requests from being confirmed.
 
 ---
 
-## 2. Project Objective
+# 2. Project Objective
 
-The objective of the project is to automate the appointment-booking process for a real estate company.
+The objective of the project is to automate the real estate appointment-booking process from the initial voice conversation through appointment confirmation and notification.
 
-Instead of requiring an employee to manually:
+Instead of requiring a staff member to manually:
 
 1. Receive the client's appointment request
-2. Check the property
-3. Check the client's existing records
-4. Check appointment availability
-5. Create the appointment
-6. Add the appointment to a calendar
-7. Notify the client
-8. Notify the assigned representative
+2. Collect the client's information
+3. Verify the requested property
+4. Check whether the client already exists
+5. Check appointment availability
+6. Create or update the client record
+7. Create the appointment
+8. Schedule the calendar event
+9. Generate a Google Meet link where required
+10. Update the appointment record
+11. Notify the client
+12. Notify the assigned representative
 
-the automation performs these tasks through a connected workflow.
-
----
-
-## 3. Main Technologies Used
-
-### Vapi
-
-Vapi provides the AI voice agent interface.
-
-The agent collects information from the caller and sends the booking request to the n8n webhook.
-
-The booking function sends information such as:
-
-* Client name
-* Client phone
-* Client email
-* Property name
-* Appointment type
-* Appointment date
-* Appointment time
-
-Example appointment types:
-
-* Physical
-* Virtual
+the automation performs these tasks through an integrated workflow.
 
 ---
 
-### n8n
+# 3. Technologies Used
 
-n8n acts as the central automation and orchestration platform.
+## Vapi
 
-It receives the request from Vapi, processes the information, communicates with Airtable and Google Calendar, and sends the appropriate response back to Vapi.
+Vapi provides the AI voice-agent interface.
+
+The AI agent communicates with the caller, collects the required booking information, confirms the details with the caller, and calls the `book_appointment` function.
+
+The function sends:
+
+```text
+client_name
+client_phone
+client_email
+property_name
+appointment_type
+appointment_date
+appointment_time
+```
 
 ---
 
-### Airtable
+## n8n
 
-Airtable is used as the central database for:
+n8n acts as the central workflow automation and orchestration platform.
 
-* Client information
-* Property information
-* Appointment information
-* Representative information
+It receives the Vapi webhook request, cleans and processes the data, communicates with Airtable and Google Calendar, determines the availability result, and returns a structured response to Vapi.
+
+---
+
+## Airtable
+
+Airtable functions as the operational database.
+
+It stores information relating to:
+
+* Clients
+* Properties
+* Appointments
+* Representatives
+* Appointment availability
 * Appointment status
-* Calendar/meeting information
+* Calendar information
+* Google Meet information
 
 ---
 
-### Google Calendar
+## Google Calendar
 
-Google Calendar is used to create confirmed appointments.
+Google Calendar is used to create calendar events for confirmed appointments.
 
-For virtual appointments, the workflow also generates a Google Meet link.
+For virtual appointments, the calendar workflow generates Google Meet information where applicable.
 
 ---
 
-### Gmail
+## Google Meet
 
-Gmail is used to send appointment-related notifications.
+Google Meet is used for virtual property viewings.
 
-The workflow can send:
+The generated meeting link is subsequently stored in the Airtable appointment record.
+
+---
+
+## Gmail
+
+Gmail is used for appointment-related notifications.
+
+The workflow sends:
 
 * Client confirmation emails
 * Representative notification emails
-* Additional appointment-related notifications
 
 ---
 
-## 4. Overall Workflow Architecture
+# 4. Business Booking Rules
 
-The workflow can be divided into several major stages:
+The appointment system follows the company's inspection schedule.
+
+## Inspection Days
+
+Property inspections are available:
+
+```text
+Monday
+Tuesday
+Wednesday
+Thursday
+Friday
+Saturday
+```
+
+Sunday is not an available inspection day.
+
+## Inspection Hours
+
+Inspection appointments are available between:
+
+```text
+10:00 AM and 3:00 PM
+```
+
+Therefore:
+
+```text
+Monday–Saturday: 10:00 AM–3:00 PM
+Sunday: Unavailable
+```
+
+If a caller requests an appointment on Sunday, the AI agent must inform the caller that inspections are not available on Sundays.
+
+If a caller requests a time outside the inspection hours, the AI agent must inform the caller that the requested time is unavailable for inspection.
+
+The agent should offer to help the caller choose another valid date or time.
+
+These business-hour rules should be enforced before attempting to book the appointment.
+
+---
+
+# 5. Overall Workflow Architecture
+
+The workflow consists of the following major stages:
 
 ```text
 Vapi AI Voice Agent
@@ -111,42 +179,153 @@ Webhook
         ↓
 Clean Data from Webhook
         ↓
-Property Search
+Search Property
         ↓
 Property Validation
         ↓
-Client Search / Client Validation
+Search Existing Client
         ↓
-Create or Update Client Record
+Check Existing Client
         ↓
-Appointment Availability Check
+Update Existing Client
+        OR
+Create New Client
         ↓
-Availability Decision
+Merge Booking Data
         ↓
- ┌───────────────┴───────────────┐
+Check Appointment Availability
+        ↓
+Availability IF
+        ↓
+ ┌───────────────────────────────┐
+ │                               │
+UNAVAILABLE                   AVAILABLE
+ │                               │
  ↓                               ↓
-Unavailable                    Available
- ↓                               ↓
-Failure Response               Create Record
-                                 ↓
-                         Immediate Success Response
-                                 ↓
-                         Physical / Virtual Logic
-                                 ↓
-                         Prepare Calendar Event
-                                 ↓
-                         Google Calendar
-                                 ↓
-                         Update Airtable Record
-                                 ↓
-                         Email Notifications
+Respond to Webhook          Create Appointment
+                                   Record
+                                     ↓
+                             Respond to Webhook
+                                (Success)
+                                     ↓
+                           Physical / Virtual
+                                Logic
+                                     ↓
+                           Prepare Calendar
+                                Event
+                                     ↓
+                           Google Calendar
+                                Event
+                                     ↓
+                           Update Airtable
+                                Record
+                                     ↓
+                           Email Client
+                                     ↓
+                           Email Representative
+```
+
+The successful webhook response is deliberately positioned immediately after the appointment record is created.
+
+---
+
+# 6. Vapi AI Booking Prompt
+
+The AI agent uses the following booking rules.
+
+```text
+BOOKING RULES
+
+When the caller wants to schedule an appointment:
+
+1. Collect the following information:
+   - Full name
+   - Phone number
+   - Email address
+   - Property name
+   - Appointment type: physical or virtual
+   - Appointment date
+   - Appointment time
+
+2. Ask for missing information one item at a time.
+   Never ask again for information the caller has already provided.
+
+3. Inspection appointments are available Monday through Saturday only.
+
+4. Inspection hours are from 10:00 AM to 3:00 PM.
+
+5. If the caller selects Sunday:
+   - Do not call book_appointment.
+   - Tell the caller that inspections are unavailable on Sundays.
+   - Offer to help find another available date.
+
+6. If the caller selects a time outside 10:00 AM to 3:00 PM:
+   - Do not call book_appointment.
+   - Tell the caller that the requested time is outside the company's inspection hours.
+   - Offer to help find another available time.
+
+7. Before calling book_appointment, read the complete booking details back to the caller and ask for confirmation.
+
+8. ONLY call book_appointment after the caller clearly confirms that all booking details are correct.
+
+9. Send the exact confirmed values to book_appointment:
+   - client_name
+   - client_email
+   - client_phone
+   - property_name
+   - appointment_date
+   - appointment_time
+   - appointment_type
+
+10. After calling book_appointment, WAIT for the tool response.
+    Do not assume the appointment was booked.
+
+11. The book_appointment tool response is the ONLY authority for whether the appointment was successfully booked.
+
+12. If the tool returns:
+    success: true
+
+    Tell the caller:
+    "Your appointment has been successfully confirmed."
+
+13. If the tool returns:
+    success: false
+    AND appointment_status: "unavailable"
+
+    Tell the caller that the requested appointment time is unavailable and offer to help find another available time.
+
+14. If the tool returns:
+    success: false
+    for any other reason:
+
+    Tell the caller that the appointment could not be confirmed.
+    Do not say that the appointment was booked.
+
+15. If the tool returns an error, timeout, empty response, missing response, or unclear response:
+
+    DO NOT claim that the appointment was booked.
+
+    Tell the caller:
+
+    "I couldn't confirm the appointment because the booking system did not return a valid confirmation. Would you like me to try again?"
+
+16. NEVER say that an appointment is booked, confirmed, or successfully scheduled unless the tool explicitly returns:
+
+    success: true
+
+IMPORTANT:
+- Do not treat the tool call itself as confirmation.
+- Do not treat a successful HTTP request as confirmation.
+- Do not treat appointment_status: "confirmed" by itself as confirmation.
+- Do not infer success from any other field.
+- Only success: true means the appointment was successfully booked.
 ```
 
 ---
 
-# 5. Webhook Configuration
+# 7. Webhook Configuration
 
-The workflow starts with an n8n **Webhook** node.
+The workflow begins with an n8n Webhook node.
 
 ### HTTP Method
 
@@ -160,49 +339,29 @@ POST
 real-estate-booking
 ```
 
-### Webhook URL
-
-```text
-https://billionairehighpriest.app.n8n.cloud/webhook/real-estate-booking
-```
-
 ### Authentication
 
 ```text
 None
 ```
 
-### Response
-
-The webhook is configured to:
+### Response Mode
 
 ```text
 Using 'Respond to Webhook' Node
 ```
 
-This allows different parts of the workflow to return different responses to the Vapi AI agent.
+This allows different branches of the workflow to return different responses to Vapi.
 
-The webhook also uses a response header:
-
-```text
-Content-Type: application/json
-```
-
-This ensures that the response sent back to the calling system is interpreted as JSON.
+The response is returned as JSON.
 
 ---
 
-# 6. Data Received From Vapi
+# 8. Data Received From Vapi
 
-The Vapi function call sends the appointment information to the webhook.
+The Vapi `book_appointment` function sends the booking information to the n8n webhook.
 
-An example request contains a function called:
-
-```text
-book_appointment
-```
-
-with arguments such as:
+Example function arguments:
 
 ```json
 {
@@ -216,43 +375,65 @@ with arguments such as:
 }
 ```
 
-The workflow extracts these values and uses them throughout the booking process.
+The actual Vapi webhook structure contains a `toolCallList`.
+
+The relevant path for the appointment type is:
+
+```text
+{{ $json.body.message.toolCallList[0].function.arguments.appointment_type }}
+```
+
+It is important not to use:
+
+```text
+toolCalls
+```
+
+when the actual incoming payload contains:
+
+```text
+toolCallList
+```
+
+The distinction was identified during real workflow testing.
 
 ---
 
-# 7. Clean Data From Webhook
+# 9. Clean Data From Webhook
 
-The first processing stage cleans and structures the information received from the webhook.
+The `Clean data from Webhook` stage extracts the important booking information into a simpler structure.
 
-This creates a simpler data structure that can be used by the remaining nodes.
+The resulting fields include:
 
-The cleaned information includes:
+```text
+client_name
+client_phone
+client_email
+property_name
+appointment_type
+appointment_date
+appointment_time
+```
 
-* `client_name`
-* `client_phone`
-* `client_email`
-* `property_name`
-* `appointment_type`
-* `appointment_date`
-* `appointment_time`
-
-This makes the information easier to map into Airtable and use in expressions throughout the workflow.
+This simplified structure is then used throughout the workflow.
 
 ---
 
-# 8. Property Search
+# 10. Property Search
 
 The workflow searches Airtable for the requested property.
 
-The property name supplied by the AI agent is used to locate the corresponding property record.
+The property name supplied by the AI agent is used to locate the corresponding Airtable property record.
 
-The property record provides information required for the appointment process, including property details and other relevant fields.
+The property record provides information required for the appointment process.
 
-The property search is important because the workflow should only proceed when the requested property can be identified.
+The workflow should only continue when the requested property can be identified.
 
-### Important implementation consideration
+---
 
-Property names must match the records used by the workflow.
+# 11. Property Name Matching
+
+Property names must correspond correctly with the property records.
 
 For example:
 
@@ -260,70 +441,71 @@ For example:
 Maple Crest
 ```
 
-and
+and:
 
 ```text
 Maplecrest
 ```
 
-may not be treated as the same value depending on the Airtable search configuration.
+may be treated as different values when the Airtable search uses exact matching.
 
-Therefore, the AI agent should be instructed to use the correct property name.
+During testing, this difference was confirmed as an important consideration.
 
----
-
-# 9. Property Validation
-
-An IF node is used after the property search to determine whether the requested property can be processed.
-
-If the required property information is available, the workflow continues.
-
-If the property cannot be found or the required information is missing, the booking should not continue into the appointment creation process.
-
-This prevents the workflow from creating appointments for invalid properties.
+The AI agent should therefore use the property name exactly as provided by the available property information whenever possible.
 
 ---
 
-# 10. Client Search
+# 12. Property Validation
 
-The workflow also searches Airtable for an existing client.
+After the property search, an IF node validates the result.
 
-The client's information is used to determine whether the person already exists in the database.
+If the property exists and the required property information is available, the workflow continues.
 
-The workflow checks existing client information before deciding whether to create a new client record or update an existing one.
+If the property cannot be identified, the workflow should not continue into appointment creation.
 
----
-
-# 11. Existing Client Logic
-
-The workflow contains a separate branch for checking whether the client already exists.
-
-The `Check Existing Client` stage evaluates the search result.
-
-An IF node then determines which path should be followed.
-
-### Existing client
-
-If the client already exists, the existing Airtable record can be updated.
-
-### New client
-
-If the client does not already exist, a new Airtable record is created.
-
-This prevents unnecessary duplicate client records.
+This prevents appointments from being created for invalid or unidentified properties.
 
 ---
 
-# 12. Create or Update Client Record
+# 13. Existing Client Search
 
-The workflow uses Airtable nodes to manage client information.
+The workflow searches Airtable to determine whether the client already exists.
 
-Depending on the result of the client search, it can:
+The search uses client information to identify an existing record.
 
-* Update an existing client record
-* Create a new client record
+The result determines whether the workflow should update an existing client record or create a new one.
 
-The client information includes:
+---
+
+# 14. Existing Client Logic
+
+The `Check Existing Client` stage evaluates the client search.
+
+The workflow supports two paths.
+
+### Existing Client
+
+If the client already exists:
+
+```text
+Update existing client record
+```
+
+### New Client
+
+If the client does not exist:
+
+```text
+Create new client record
+```
+
+This reduces duplicate client records.
+
+---
+
+# 15. Client Information
+
+The client record contains information such as:
 
 ```text
 Client Name
@@ -335,15 +517,15 @@ Appointment Date
 Appointment Time
 ```
 
-The resulting record becomes part of the booking process.
+The resulting record becomes part of the appointment-booking process.
 
 ---
 
-# 13. Appointment Availability Check
+# 16. Appointment Availability Check
 
-After the required property and client information have been processed, the workflow checks whether the requested appointment slot is available.
+After the property and client information have been processed, the workflow checks whether the requested appointment slot is available.
 
-The availability check considers the requested:
+The availability process considers information such as:
 
 ```text
 Appointment Date
@@ -352,27 +534,46 @@ Appointment Type
 Property
 ```
 
-The purpose of this stage is to prevent the system from confirming an appointment that cannot be scheduled.
+The availability check prevents the workflow from creating an appointment for a slot that has already been taken or is otherwise unavailable.
 
 ---
 
-# 14. Availability Decision
+# 17. Availability IF Logic
 
-An IF node evaluates the result of the availability check.
+The availability IF node evaluates the availability result.
 
-There are two main outcomes.
+A representative condition used in the workflow is:
 
-## Available
+```text
+{{ $json.fields["Physical Viewing Available"] }}
+```
 
-If the requested slot is available, the workflow continues with the booking process.
+with the comparison:
 
-## Unavailable
+```text
+is equal to
+true
+```
 
-If the requested slot is unavailable, the workflow does not create the appointment.
+For the appointment type, the incoming Vapi value is taken from:
 
-Instead, it sends a response back to Vapi informing the AI voice agent that the requested time is unavailable.
+```text
+{{ $json.body.message.toolCallList[0].function.arguments.appointment_type }}
+```
 
-Example response:
+and compared against:
+
+```text
+physical
+```
+
+The workflow must use the actual JSON structure returned by the live webhook execution.
+
+---
+
+# 18. Unavailable Appointment Response
+
+If the requested appointment cannot be booked, the workflow returns a structured JSON response.
 
 ```json
 {
@@ -382,23 +583,25 @@ Example response:
 }
 ```
 
-This allows the AI agent to continue the conversation naturally with the caller.
+The AI agent then communicates the unavailability to the caller and can help find another time.
+
+This response was successfully tested during the project.
 
 ---
 
-# 15. Successful Booking Response
+# 19. Successful Booking Record
 
-For a successful booking, the workflow uses a **Respond to Webhook** node.
+If the appointment is available, the workflow creates the appointment record in Airtable.
 
-An important implementation decision was made here:
+The creation of this record represents the successful booking stage of the workflow.
 
-> The successful Respond to Webhook node is placed immediately after the appointment record is successfully created.
+The successful Respond to Webhook node is positioned immediately after the `Create a record` node.
 
-This means the AI voice agent does not have to wait for the remaining downstream automation processes before receiving confirmation.
+---
 
-The response confirms that the booking request has been accepted successfully.
+# 20. Successful Respond to Webhook
 
-Example response:
+The successful response uses valid JSON.
 
 ```json
 {
@@ -408,95 +611,109 @@ Example response:
 }
 ```
 
-This response is returned to Vapi, allowing the AI voice agent to tell the caller that the appointment has been confirmed.
+The most important field is:
 
----
-
-# 16. Why the Successful Response Comes Immediately After Create Record
-
-The workflow continues performing additional background tasks after the booking record has been created.
-
-These include:
-
-* Preparing the calendar event
-* Creating the Google Calendar event
-* Generating the Google Meet link where applicable
-* Updating the Airtable appointment record
-* Sending emails
-
-If the response to Vapi waited until all of these operations were completed, the caller could experience unnecessary delay.
-
-Placing the successful Respond to Webhook immediately after the booking record is created allows the voice agent to receive the confirmation quickly while the remaining automation continues.
-
----
-
-# 17. Physical and Virtual Appointment Logic
-
-The workflow supports two appointment types:
-
-```text
-Physical
-Virtual
+```json
+"success": true
 ```
 
-The appointment type is passed from the AI agent and stored in the booking record.
-
-The workflow then uses conditional logic to determine how the appointment should be handled.
-
-### Physical Viewing
-
-For a physical viewing, the appointment is scheduled without requiring a Google Meet meeting link.
-
-### Virtual Viewing
-
-For a virtual viewing, the workflow creates the appropriate calendar event and obtains the Google Meet information.
-
-The Google Meet link is then stored in the Airtable appointment record and used in the client notification.
+The Vapi prompt explicitly states that `success: true` is the only authoritative confirmation of a successful booking.
 
 ---
 
-# 18. Calendar Event Preparation
+# 21. Why the Successful Response Comes Immediately After Create a Record
 
-After the booking has been confirmed, the workflow prepares the information required to create the calendar event.
+The successful Respond to Webhook node is intentionally placed immediately after `Create a record`.
 
-The `Prepare Calendar Event` stage organizes the booking information into the format required by Google Calendar.
+This allows Vapi to receive the booking confirmation without waiting for the remaining automation.
 
-The information includes:
+After the response is returned, the workflow continues with downstream processing such as:
 
-* Property
-* Client
-* Appointment type
-* Date
-* Time
-* Representative
-* Meeting information where applicable
+```text
+Physical / Virtual Logic
+        ↓
+Prepare Calendar Event
+        ↓
+Google Calendar
+        ↓
+Update Airtable
+        ↓
+Email Client
+        ↓
+Email Representative
+```
+
+This reduces perceived response time for the caller.
+
+### Important implementation distinction
+
+The immediate response confirms that the booking record was successfully created.
+
+It does not mean that every downstream operation has already completed.
 
 ---
 
-# 19. Google Calendar Event
+# 22. Physical and Virtual Appointment Logic
 
-The workflow then creates an event in Google Calendar.
+The workflow supports:
+
+```text
+physical
+virtual
+```
+
+The appointment type determines the downstream handling.
+
+### Physical Appointment
+
+A physical viewing does not require a Google Meet link.
+
+### Virtual Appointment
+
+A virtual viewing requires meeting information.
+
+The calendar workflow generates the Google Meet information, which is subsequently stored in the Airtable appointment record.
+
+---
+
+# 23. Calendar Event Preparation
+
+After the successful response has been returned, the workflow prepares the calendar event.
+
+The calendar information includes:
+
+```text
+Property
+Client
+Appointment Type
+Appointment Date
+Appointment Time
+Representative
+Meeting Information where applicable
+```
+
+---
+
+# 24. Google Calendar
+
+The workflow creates the appointment event in Google Calendar.
 
 The event represents the confirmed property viewing.
 
-For virtual appointments, the Google Calendar event can contain the Google Meet information.
-
-The calendar event provides a centralized schedule for the appointment and the assigned representative.
+For virtual appointments, Google Meet information is generated as part of the calendar process.
 
 ---
 
-# 20. Airtable Appointment Update
+# 25. Airtable Appointment Update
 
-After the calendar event has been created, the workflow updates the Airtable appointment record.
+After the Google Calendar event is created, the workflow updates the appointment record in Airtable.
 
-The updated record can contain information generated during the calendar stage.
+For virtual appointments, the Google Meet link is stored in the updated record.
 
-For virtual appointments, the Google Meet link is stored in the record.
-
-This creates a connection between:
+The resulting relationship is:
 
 ```text
-Airtable Appointment Record
+Airtable Appointment
         ↓
 Google Calendar Event
         ↓
@@ -505,27 +722,17 @@ Google Meet
 
 ---
 
-# 21. Client Email Notification
+# 26. Client Confirmation Email
 
-After the appointment has been confirmed, the workflow sends a confirmation email to the client.
+The client receives a confirmation email after the appointment-processing stage.
 
-The email contains information such as:
-
-* Client name
-* Property
-* Appointment type
-* Viewing date
-* Viewing time
-* Google Meet link for virtual appointments
-* Assigned representative
-
-Example subject:
+### Subject
 
 ```text
 Your {{ $('Create a record').item.json.fields['Property Name'] }} Property Viewing is Confirmed
 ```
 
-Example message:
+### Message
 
 ```text
 Hello {{ $('Create a record').item.json.fields['Client Name'] }},
@@ -550,13 +757,25 @@ Please use the Google Meet link at the scheduled time.
 Thank you.
 ```
 
-The Google Meet link is taken from the **Update record** node because that value is generated after the calendar event is created.
+The implementation intentionally uses:
 
-The remaining appointment information is taken from the **Create a record** node.
+```text
+Create a record
+```
+
+for the original appointment information.
+
+The Google Meet link is taken from:
+
+```text
+Update record
+```
+
+because the meeting link becomes available after the calendar event is created.
 
 ---
 
-# 22. Representative Notification
+# 27. Representative Notification
 
 The assigned representative also receives an email notification.
 
@@ -573,17 +792,23 @@ Appointment Time
 Google Meet Link
 ```
 
-The representative can therefore prepare for the appointment before the scheduled time.
+The Google Meet link is retrieved from the updated appointment record.
 
-The Google Meet link is retrieved from the updated appointment record because it becomes available after the calendar event is created.
+The remaining appointment information can be retrieved from the original `Create a record` output.
 
 ---
 
-# 23. Response Handling
+# 28. Respond to Webhook Configuration
 
-The workflow uses JSON responses to communicate the result of the booking process back to the Vapi AI voice agent.
+The Respond to Webhook node returns JSON.
 
-### Successful booking
+### Response Header
+
+```text
+Content-Type: application/json
+```
+
+### Response Body — Successful Booking
 
 ```json
 {
@@ -593,7 +818,7 @@ The workflow uses JSON responses to communicate the result of the booking proces
 }
 ```
 
-### Unavailable appointment
+### Response Body — Unavailable
 
 ```json
 {
@@ -603,39 +828,41 @@ The workflow uses JSON responses to communicate the result of the booking proces
 }
 ```
 
-The response body must contain valid JSON.
+The JSON must be syntactically valid.
 
-Invalid JSON in the Respond to Webhook node can cause the response to fail even when the rest of the workflow executes successfully.
-
----
-
-# 24. Response Headers
-
-The webhook uses:
+For example, the following is invalid:
 
 ```text
-Content-Type: application/json
+{ success: true }
 ```
 
-This identifies the returned data as JSON.
+because JSON requires quoted property names.
 
-The workflow does not require additional response headers for the current implementation.
+The correct format is:
+
+```json
+{
+  "success": true
+}
+```
 
 ---
 
-# 25. Response Code
+# 29. Response Code
 
-The webhook response uses the standard successful HTTP response for successful processing.
+The webhook uses the normal successful HTTP response for processing the request.
 
-The JSON body communicates the actual booking status to the AI agent.
+The HTTP status indicates that the webhook request was processed.
 
-The important distinction is:
+The JSON body communicates the actual booking result.
+
+Therefore:
 
 ```text
 HTTP response
 ```
 
-indicates that the webhook request was processed, while:
+and:
 
 ```text
 success
@@ -643,105 +870,276 @@ appointment_status
 message
 ```
 
-communicate the actual business result of the booking request.
+serve different purposes.
+
+The Vapi agent should rely on the JSON booking result rather than treating an HTTP success status alone as proof that an appointment was booked.
 
 ---
 
-# 26. Streaming
+# 30. Streaming
 
-Streaming is not required for the current appointment-booking workflow.
+Streaming is not required for the current implementation.
 
-The workflow returns a completed JSON response to the Vapi agent rather than streaming the response progressively.
+The workflow returns a completed JSON response to Vapi rather than progressively streaming the response.
 
 ---
 
-# 27. Testing and Debugging
+# 31. Error and Invalid Response Handling
 
-The workflow was tested using actual Vapi calls and n8n executions.
+If the booking system returns an error, timeout, empty response, missing response, or unclear response, the AI agent must not claim that the appointment was booked.
 
-During testing, several issues were identified and resolved.
-
-### Issue 1: Successful booking was not being interpreted correctly
-
-The workflow executed successfully, but the AI voice agent reported:
+The configured fallback response is:
 
 ```text
-I couldn't confirm the appointment because the booking system did not return a valid confirmation.
+I couldn't confirm the appointment because the booking system did not return a valid confirmation. Would you like me to try again?
 ```
 
-The issue was traced to the structure of the JSON response being returned by the Respond to Webhook node.
-
-The response body was corrected to valid JSON with explicit booking status information.
+This prevents false confirmations.
 
 ---
 
-### Issue 2: Invalid JSON
+# 32. Testing and Debugging
 
-n8n reported:
+The workflow was tested through actual published Vapi calls and n8n executions.
+
+Several issues were identified and resolved.
+
+## Issue 1 — Invalid JSON Response
+
+n8n initially displayed:
 
 ```text
 Invalid JSON in 'Response Body' field
 ```
 
-The response body was corrected so that it contained valid JSON syntax.
+The Respond to Webhook body was corrected to valid JSON.
 
-This demonstrated the importance of validating the response body before relying on it as the interface between n8n and Vapi.
+This was important because the workflow could execute successfully while Vapi still failed to interpret the response correctly.
 
 ---
 
-### Issue 3: Unavailable appointments
+## Issue 2 — Successful Booking Not Recognized
 
-The unavailable appointment branch was successfully tested.
+The workflow executed successfully, but Vapi returned:
 
-The AI agent received:
+```text
+I couldn't confirm the appointment because the booking system did not return a valid confirmation.
+```
+
+The response body was corrected to explicitly return:
+
+```json
+{
+  "success": true,
+  "appointment_status": "confirmed",
+  "message": "Appointment successfully booked."
+}
+```
+
+The AI agent was then instructed to treat only:
+
+```text
+success: true
+```
+
+as confirmation.
+
+---
+
+## Issue 3 — Unavailable Appointment
+
+The unavailable branch was successfully tested.
+
+The AI agent returned:
 
 ```text
 The requested appointment time is unavailable. Would you like help finding another available time?
 ```
 
-The workflow therefore correctly prevents unavailable appointments from being confirmed.
+This confirmed that the availability branch was correctly communicating with Vapi.
 
 ---
 
-### Issue 4: Property name mismatch
+## Issue 4 — Property Name Mismatch
 
-Testing also showed that property names need to correspond correctly with the Airtable property records.
-
-For example:
+The workflow demonstrated that:
 
 ```text
 Maple Crest
 ```
 
-is different from:
+and:
 
 ```text
 Maplecrest
 ```
 
-when the search is based on exact matching.
+can be treated as different property names when exact matching is used.
 
-The property search was confirmed to work when the correct property name was supplied.
+The correct property name must therefore be supplied to the property search.
 
 ---
 
-### Issue 5: IF node field reference
+## Issue 5 — Incorrect Vapi JSON Path
 
-An additional issue was identified in the IF node.
+During testing, an IF node was referencing the wrong Vapi field path.
 
-The IF condition was initially referencing the wrong JSON path.
+The incorrect structure referenced:
 
-The correct field had to correspond to the actual structure of the incoming data.
+```text
+toolCalls
+```
 
-This was corrected after inspecting the real execution data.
+while the actual incoming payload contained:
+
+```text
+toolCallList
+```
+
+The correct expression is:
+
+```text
+{{ $json.body.message.toolCallList[0].function.arguments.appointment_type }}
+```
+
+This was corrected after inspecting the actual published execution data.
 
 The workflow subsequently executed successfully.
 
 ---
 
-# 28. Final Workflow Journey
+## Issue 6 — Airtable Active Field Reference
 
-The complete workflow journey is:
+The availability/client logic also required the correct Airtable field path.
+
+For example, where the incoming merged item exposes `Active` at the root level, the expression is:
+
+```text
+{{ $json["Active"] }}
+```
+
+Where the field is inside an Airtable `fields` object, the appropriate structure is:
+
+```text
+{{ $json.fields["Active"] }}
+```
+
+The correct expression must always match the actual structure shown in the live execution data.
+
+This is why inspecting the **actual execution JSON** is preferable to assuming the structure from a node's expected schema.
+
+---
+
+# 33. Important JSON and Expression Rules
+
+The following rules should be maintained when modifying the workflow.
+
+### Vapi appointment type
+
+```text
+{{ $json.body.message.toolCallList[0].function.arguments.appointment_type }}
+```
+
+### Physical availability
+
+```text
+{{ $json.fields["Physical Viewing Available"] }}
+```
+
+### Root-level Active field
+
+Where the execution exposes `Active` at the root:
+
+```text
+{{ $json["Active"] }}
+```
+
+### Create Record — Property
+
+```text
+{{ $('Create a record').item.json.fields['Property Name'] }}
+```
+
+### Create Record — Client
+
+```text
+{{ $('Create a record').item.json.fields['Client Name'] }}
+```
+
+### Create Record — Appointment Type
+
+```text
+{{ $('Create a record').item.json.fields['Appointment Type'] }}
+```
+
+### Create Record — Date
+
+```text
+{{ $('Create a record').item.json.fields['Appointment Date'] }}
+```
+
+### Create Record — Time
+
+```text
+{{ $('Create a record').item.json.fields['Appointment Time'] }}
+```
+
+### Update Record — Google Meet
+
+```text
+{{ $('Update record').item.json.fields['Meeting Link'] }}
+```
+
+### Create Record — Representative
+
+```text
+{{ $('Create a record').item.json.fields.Representative.name }}
+```
+
+The exact node names must remain unchanged if these expressions are used.
+
+If a node is renamed, the corresponding expressions must also be updated.
+
+---
+
+# 34. Vapi Response Logic
+
+The AI agent follows this decision structure:
+
+```text
+Book Appointment Tool Called
+        ↓
+Wait for Tool Response
+        ↓
+      ┌───────────────────────────┐
+      │                           │
+ success: true             success: false
+      │                           │
+      ↓                    ┌──────┴───────────┐
+Confirmed              unavailable        other failure
+                             │                   │
+                             ↓                   ↓
+                       Offer another       Say booking
+                       available time      could not be confirmed
+```
+
+If the tool response is missing, empty, unclear, or produces an error:
+
+```text
+Do not claim success.
+```
+
+Instead:
+
+```text
+I couldn't confirm the appointment because the booking system did not return a valid confirmation. Would you like me to try again?
+```
+
+---
+
+# 35. Final Workflow Journey
+
+The complete implementation is:
 
 ```text
 1. Vapi AI Voice Agent
@@ -758,7 +1156,9 @@ The complete workflow journey is:
         ↓
 7. Check Existing Client
         ↓
-8. Update Existing Client OR Create New Client
+8. Update Existing Client
+        OR
+   Create New Client
         ↓
 9. Merge Booking Data
         ↓
@@ -766,106 +1166,158 @@ The complete workflow journey is:
         ↓
 11. Availability IF
         ↓
-      ┌───────────────┐
-      │               │
- UNAVAILABLE       AVAILABLE
-      │               │
-      ↓               ↓
-Respond to        Create Appointment
-Webhook           Record
-                      ↓
-              Respond to Webhook
-              (Success)
-                      ↓
-              Physical / Virtual
-                   Logic
-                      ↓
-              Prepare Calendar
-                   Event
-                      ↓
-              Google Calendar
-                Event
-                      ↓
-              Update Airtable
-                   Record
-                      ↓
-              Email Client
-                      ↓
-              Email Representative
+ ┌───────────────────────┐
+ │                       │
+UNAVAILABLE           AVAILABLE
+ │                       │
+ ↓                       ↓
+Respond to           Create a Record
+Webhook                  ↓
+                    Respond to Webhook
+                       SUCCESS
+                         ↓
+                Physical / Virtual IF
+                         ↓
+                Prepare Calendar Event
+                         ↓
+                   Google Calendar
+                         ↓
+                  Update Airtable
+                         ↓
+                    Email Client
+                         ↓
+               Email Representative
 ```
 
-The successful response is intentionally returned immediately after the appointment record is created, while the remaining calendar, Airtable, and email operations continue as part of the workflow.
+The unavailable branch terminates the booking process without creating the appointment.
+
+The successful branch returns the booking confirmation immediately after the appointment record is created and then continues with downstream calendar, Airtable, and notification operations.
 
 ---
 
-# 29. Key Design Decisions
+# 36. Key Design Decisions
 
-### Immediate webhook response
+## Immediate Webhook Response
 
-The successful Respond to Webhook node is placed immediately after Create a Record so that the AI voice agent receives confirmation without waiting for all downstream operations.
+The successful Respond to Webhook node is positioned immediately after the appointment record is created.
 
-### Availability before booking
+This allows Vapi to receive the booking confirmation without waiting for all downstream automation.
 
-The system checks availability before creating the appointment to prevent unavailable slots from being confirmed.
+---
 
-### Client record verification
+## Availability Before Booking
 
-The workflow searches for existing clients before creating new records to reduce duplicate client records.
+The workflow checks appointment availability before creating the appointment record.
 
-### Separate physical and virtual handling
+This prevents unavailable appointment slots from being confirmed.
 
-The appointment type determines whether the booking requires virtual meeting information.
+---
 
-### Airtable as the operational database
+## Business-Hour Validation
 
-Airtable stores the client, property, appointment, representative, and meeting information required by the workflow.
+The AI agent prevents bookings outside the company's inspection schedule:
 
-### Calendar integration
+```text
+Monday–Saturday
+10:00 AM–3:00 PM
+```
+
+Sunday appointments are not accepted.
+
+---
+
+## Client Record Verification
+
+The workflow searches for existing clients before creating new records.
+
+This reduces duplicate client records.
+
+---
+
+## Property Validation
+
+The requested property must be identified before the workflow proceeds.
+
+---
+
+## Physical and Virtual Separation
+
+The appointment type determines whether Google Meet information is required.
+
+---
+
+## Airtable as Operational Database
+
+Airtable stores the operational information required throughout the appointment lifecycle.
+
+---
+
+## Calendar Integration
 
 Google Calendar provides the scheduling layer for confirmed appointments.
 
-### JSON-based communication
+---
 
-The Respond to Webhook nodes provide structured JSON responses that allow Vapi to understand whether a booking succeeded or failed.
+## JSON-Based Communication
+
+Respond to Webhook provides structured JSON responses between n8n and Vapi.
 
 ---
 
-# 30. Project Status
+## Explicit Success Confirmation
 
-The core appointment-booking workflow has been successfully implemented and tested.
+The AI agent does not infer success.
 
-The current workflow supports:
+Only:
+
+```json
+"success": true
+```
+
+is treated as a successful booking confirmation.
+
+---
+
+# 37. Project Status
+
+The core Real Estate AI Appointment Booking Automation has been implemented and tested through actual published workflow executions.
+
+The current system supports:
 
 * AI voice appointment requests
+* Booking confirmation
+* Business-hour validation
+* Sunday restriction
 * Property validation
 * Client search
 * Existing-client handling
 * New-client creation
 * Appointment availability checking
-* Successful booking
 * Unavailable-slot handling
 * Physical appointments
 * Virtual appointments
 * Google Calendar event creation
 * Google Meet information
-* Airtable record updates
+* Airtable appointment updates
 * Client email notifications
 * Representative email notifications
 * JSON webhook responses
 * Vapi response handling
+* Error and invalid-response handling
 
-The workflow has also been tested through actual published executions rather than only individual n8n node tests.
+The workflow has been tested through real Vapi calls and published n8n executions rather than only individual node tests.
 
 ---
 
-# 31. Project Repository Structure
+# 38. GitHub Repository Structure
 
-The GitHub repository is organized into the following main sections:
+The public GitHub repository is organized as follows:
 
 ```text
 real-estate-ai-appointment-booking/
 │
 ├── blueprint/
+│   └── project blueprint screenshot
 │
 ├── documentation/
 │   └── project-documentation.md
@@ -887,18 +1339,18 @@ The `blueprint` folder contains the project blueprint.
 
 The `screenshots` folder contains screenshots documenting the workflow and its implementation.
 
-The `documentation` folder contains detailed technical documentation describing the workflow architecture, logic, configuration, testing, and implementation decisions.
+The `documentation` folder contains detailed technical documentation covering architecture, workflow logic, JSON communication, testing, debugging, and implementation decisions.
 
-The root `README.md` provides an overview of the project for anyone visiting the public GitHub repository.
+The root `README.md` provides a concise project overview for visitors to the public repository.
 
 ---
 
-# 32. Conclusion
+# 39. Conclusion
 
-The Real Estate AI Appointment Booking Automation combines voice AI, workflow automation, database management, calendar scheduling, and email communication into a single appointment-booking system.
+The Real Estate AI Appointment Booking Automation combines voice AI, workflow automation, database management, calendar scheduling, virtual meeting generation, and email communication into an end-to-end appointment management system.
 
-The workflow is designed so that the AI agent can handle the initial conversation and booking request while n8n manages the underlying business logic.
+The AI agent handles the conversation and collection of booking information, while n8n manages the underlying business logic and integrations.
 
-The final system provides a structured process for validating properties, identifying clients, checking appointment availability, confirming bookings, scheduling calendar events, generating virtual meeting information, updating records, and notifying the relevant people.
+The final system validates the property, identifies the client, enforces inspection-day and inspection-hour rules, checks availability, creates the appointment record, returns a structured booking response, schedules the calendar event, generates Google Meet information for virtual appointments, updates Airtable, and sends notifications.
 
-The project demonstrates how AI voice interfaces can be connected to business automation systems to create a practical end-to-end real estate appointment management solution.
+The project demonstrates how an AI voice interface can be integrated with business automation infrastructure to create a practical and reliable real estate appointment-booking solution.
