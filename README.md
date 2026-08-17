@@ -1,5 +1,5 @@
 # Real Estate Appointment Booking Automation
-# Project REVA - Real Estate Virtual Assistant
+## Project REVA - Real Estate Virtual Assistant
 
 ## Project Overview
 
