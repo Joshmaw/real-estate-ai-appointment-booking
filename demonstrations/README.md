@@ -2,14 +2,22 @@
 
 This folder contains video demonstrations of the Real Estate AI Appointment Booking Automation successfully processing both physical and virtual property viewing appointments.
 
+The demonstrations show the AI voice interaction and the corresponding successful booking workflow execution.
+
 ## Physical Booking Demonstration
 
-This video shows a successful physical property viewing booking from the AI voice conversation through the n8n workflow execution. It demonstrates the collection and confirmation of the client's booking details, availability validation, record creation, and successful booking response.
+This demonstration shows a successful physical property viewing appointment. It includes the AI voice conversation with the client and the successful execution of the booking workflow.
 
-[Watch Physical Booking Demonstration](./physical-booking-success.mp4)
+**Physical Booking Demonstration:**
+[Watch the Physical Booking Demonstration](https://drive.google.com/file/d/19GNb4GCiQxMC3zQKgSvr8xPXe61MRh_8/view?usp=sharing&utm_source=chatgpt.com)
 
 ## Virtual Booking Demonstration
 
-This video shows a successful virtual property viewing booking. It demonstrates the AI voice conversation, booking validation, record creation, generation of the Google Meet meeting link, and successful confirmation of the appointment.
+This demonstration shows a successful virtual property viewing appointment. It includes the AI voice conversation, successful booking workflow execution, and the virtual appointment process.
 
-[Watch Virtual Booking Demonstration](./virtual-booking-success.mp4)
+**Virtual Booking Demonstration:**
+[Watch the Virtual Booking Demonstration](https://drive.google.com/file/d/1RI9Y62U-d_HA1b09MycmiArQKcNVwalh/view?usp=sharing&utm_source=chatgpt.com)
+
+## Purpose
+
+These demonstrations provide a practical view of how the AI appointment booking system handles different appointment types and confirms successful bookings through the automated workflow.
